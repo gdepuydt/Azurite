@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+    "examples/audio",
+    "audio_lib",
+]
