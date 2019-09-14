@@ -1,6 +1,6 @@
-use audio_lib;
+use azurite;
 
 fn main() {
     println!("Hello, world!");
-    audio_lib::test();
+    azurite::test();
 }

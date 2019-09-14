@@ -2,5 +2,5 @@
 
 members = [
     "examples/audio",
-    "audio_lib",
+    "lib",
 ]

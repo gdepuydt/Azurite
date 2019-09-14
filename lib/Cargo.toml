@@ -1,5 +1,5 @@
 [package]
-name = "audio_lib"
+name = "azurite"
 version = "0.1.0"
 authors = ["Geert Depuydt <geert_depuydt@hotmail.com>"]
 edition = "2018"
