@@ -1,7 +1,7 @@
 [package]
 name = "azurite"
 description = "A WIP multimedia creative engine"
-license = "GPL"
+license = "GPL-3.0"
 version = "0.1.0"
 authors = ["Geert Depuydt <geert_depuydt@hotmail.com>"]
 edition = "2018"
