@@ -3,15 +3,15 @@
 mod win32;
 
 // Global constants
-const A_FALSE: usize = 0;
-const A_TRUE: usize = 1;
-const A_MAX_KEYS: usize = 256;
-const A_MAX_TEXT: usize = 256;
-const A_MAX_ERROR: usize = 1024;
-const A_CTRL: usize = 0x11;
-const A_ALT: usize = 0x12;
-const A_SHIFT:usize = 0x10;
-const A_MAX_AUDIO_BUFFER: usize = 2 * 1024;
+const FALSE: usize = 0;
+const TRUE: usize = 1;
+const MAX_KEYS: usize = 256;
+// const MAX_TEXT: usize = 256;
+const MAX_ERROR: usize = 1024;
+const CTRL: usize = 0x11;
+const ALT: usize = 0x12;
+const SHIFT:usize = 0x10;
+const MAX_AUDIO_BUFFER: usize = 2 * 1024;
 
 // type A_Bool = u8;
 type SoundSample = i16; 
@@ -130,12 +130,12 @@ struct AudioBuffer<'a> {
 // typedef void(*P_AudioCallback)(P_AudioBuffer *buffer);
 type AudioCallback = fn(buffer: &AudioBuffer);
 
-pub struct A_Audio {
+pub struct Audio {
 	format: AudioFormat,
 	callback: AudioCallback,
 }
 
-struct P_Time {
+struct Time {
 	delta_seconds: f32,
 	delta_ticks: u64,
 	delta_nanoseconds: u64,
@@ -152,3 +152,47 @@ struct P_Time {
 	initial_ticks: u64,
 	ticks_per_second: u64,
 }
+
+pub struct Azurite<'a> {
+    initialized: bool,
+    quit: bool,
+
+	// TODO: error handling
+    /*
+	char *error;
+    char error_buffer[MU_MAX_ERROR];
+	*/
+    
+	window: Window<'a>,
+    keys: [DigitalButton; MAX_KEYS],
+    gamepad: Gamepad,
+    mouse: Mouse,
+	text: String,
+	time: Time,
+    audio: Audio,
+    #[cfg(target_os = "windows")]
+	win32: &'a win32::Win32<'a>,
+    // /* @platform{macos} */ struct Mu_Cocoa *cocoa;
+}
+
+impl<'a> Azurite<'a> {
+	//TODO: initialize ?
+
+	fn pull(&self) -> bool {
+		true
+	}
+
+	fn push(&mut self) {
+
+	}
+}
+
+struct Image<'a> {
+	pixels: &'a u8,
+    channels: u32,
+    width: u32,
+    height: u32,
+}
+
+
+// TODO continue image and audio
