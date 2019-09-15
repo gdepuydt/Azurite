@@ -63,16 +63,14 @@ pub struct Stick {
 impl Stick {
 	fn stick_update(&mut self, x: f32, y: f32) {
 		if x.abs() <= self.threshold {
-			self.x = 0.0_f32;
-		} else {
-			self.x = x;
+			x = 0.0_f32;
 		}
+		self.x = x;
 
 		if y.abs() <= self.threshold {
-			self.y = 0.0_f32;
-		} else {
-			self.y = y;
-		}
+			y = 0.0_f32;
+		} 
+		self.y = y;
 	}
 }
 
@@ -114,6 +112,22 @@ pub struct Window<'a> {
 	resized: bool,
 }
 
+struct Image<'a> {
+	pixels: &'a u8,
+    channels: u32,
+    width: u32,
+    height: u32,
+}
+
+impl<'a> Image<'a> {
+	fn load_image(file_name: &str) -> Image {
+
+	}
+}
+
+
+	
+
 struct AudioFormat {
 	samples_per_second: u32,
 	channels: u32,
@@ -125,7 +139,11 @@ struct AudioBuffer<'a> {
 	samples_count: usize,
 	format: AudioFormat,
 }
+impl<'a> AudioBuffer<'a> {
+	fn load_audio(file_name: &str) -> AudioBuffer {
 
+	}
+}
 
 // typedef void(*P_AudioCallback)(P_AudioBuffer *buffer);
 type AudioCallback = fn(buffer: &AudioBuffer);
@@ -176,7 +194,9 @@ pub struct Azurite<'a> {
 }
 
 impl<'a> Azurite<'a> {
-	//TODO: initialize ?
+	fn initialize() ->  Azurite<'static> {
+
+	}
 
 	fn pull(&self) -> bool {
 		true
@@ -185,14 +205,10 @@ impl<'a> Azurite<'a> {
 	fn push(&mut self) {
 
 	}
+
 }
 
-struct Image<'a> {
-	pixels: &'a u8,
-    channels: u32,
-    width: u32,
-    height: u32,
-}
+
 
 
 // TODO continue image and audio
