@@ -11,32 +11,57 @@ const A_ALT: usize = 0x12;
 const A_SHIFT:usize = 0x10;
 const A_MAX_AUDIO_BUFFER: usize = 2 * 1024;
 
-type A_Bool = u8;
-type A_SoundSample = i16; 
+// type A_Bool = u8;
+type SoundSample = i16; 
 
-pub struct A_Int2 {
+pub struct Int2 {
 	x: usize,
 	y: usize,
 }
 
-pub struct A_DigitalButton {
-	down: A_Bool,
-	pressed: A_Bool, // !down -> down
-	released: A_Bool, //down -> !down
+pub struct DigitalButton {
+	down: bool,
+	pressed: bool, // !down -> down
+	released: bool, //down -> !down
 }
 
-pub struct A_AnalogButton {
+impl DigitalButton {
+	fn digital_button_update(&mut self, down: bool) {
+		let was_down = self.down;
+		self.down = down;
+		self.released = was_down && !down;
+		self.pressed = !was_down &&  down;
+	}
+}
+
+pub struct AnalogButton {
 	threshold: f32, //defaults to 0.5
 	value: f32, //0.0 to 1.0
-	down: A_Bool, //value <= threshold
-	pressed: A_Bool,// !down -> down
-	released: A_Bool, //down -> !down
+	down: bool, //value <= threshold
+	pressed: bool,// !down -> down
+	released: bool, //down -> !down
 }
 
-pub struct A_Stick {
+impl AnalogButton {
+	fn analog_button_update(&mut self, value: f32) {
+		self.value = value;
+		let was_down = self.down;
+		self.down = value >= self.threshold;
+		self.pressed = !was_down && self.down;
+		self.released = was_down && !self.down;  
+	}
+}
+
+pub struct Stick {
 	threshold: f32,
 	x: f32,
 	y: f32,
+}
+
+impl Stick {
+	fn stick_update(&mut self, x: f32, y: f32) {
+		// Todo: implement
+	}
 }
 
 pub struct A_Gamepad {
