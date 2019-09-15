@@ -1,4 +1,6 @@
-use std::ffi::c_void;
+
+#[cfg(target_os = "windows")]
+mod win32;
 
 // Global constants
 const A_FALSE: usize = 0;
@@ -60,67 +62,77 @@ pub struct Stick {
 
 impl Stick {
 	fn stick_update(&mut self, x: f32, y: f32) {
-		// Todo: implement
+		if x.abs() <= self.threshold {
+			self.x = 0.0_f32;
+		} else {
+			self.x = x;
+		}
+
+		if y.abs() <= self.threshold {
+			self.y = 0.0_f32;
+		} else {
+			self.y = y;
+		}
 	}
 }
 
-pub struct A_Gamepad {
-	connected: A_Bool,
-	a_button: A_DigitalButton,
-	b_button: A_DigitalButton,
-	x_button: A_DigitalButton,
-	y_button: A_DigitalButton,
-	left_shoulder_button: A_DigitalButton,
-	right_shoulder_button: A_DigitalButton,
-	up_button: A_DigitalButton,
-	down_button: A_DigitalButton,
-	left_button: A_DigitalButton,
-	right_button: A_DigitalButton,
-	left_trigger: A_AnalogButton,
-	right_trigger: A_AnalogButton,
-	left_thumb_stick: A_Stick,
-	right_thumb_stick: A_Stick,
-	left_thumb_button: A_DigitalButton,
-	right_thumb_button: A_DigitalButton,
-	back_button: A_DigitalButton,
-	start_button: A_DigitalButton,
+pub struct Gamepad {
+	connected: bool,
+	a_button: DigitalButton,
+	b_button: DigitalButton,
+	x_button: DigitalButton,
+	y_button: DigitalButton,
+	left_shoulder_button: DigitalButton,
+	right_shoulder_button: DigitalButton,
+	up_button: DigitalButton,
+	down_button: DigitalButton,
+	left_button: DigitalButton,
+	right_button: DigitalButton,
+	left_trigger: AnalogButton,
+	right_trigger: AnalogButton,
+	left_thumb_stick: Stick,
+	right_thumb_stick: Stick,
+	left_thumb_button: DigitalButton,
+	right_thumb_button: DigitalButton,
+	back_button: DigitalButton,
+	start_button: DigitalButton,
 }
 
-pub struct A_Mouse {
-	left_button: A_DigitalButton,
-	right_button: A_DigitalButton,
-	delta_position: A_Int2,
-	position: A_Int2, //client window relative
+pub struct Mouse {
+	left_button: DigitalButton,
+	right_button: DigitalButton,
+	delta_position: Int2,
+	position: Int2, //client window relative
 	wheel: usize,
 	delta_wheel: usize,
 }
 
-pub struct A_Window<'a> {
+pub struct Window<'a> {
 	title: &'a str,
-	pos: A_Int2,
-	size: A_Int2,
-	resized: A_Bool,
+	pos: Int2,
+	size: Int2,
+	resized: bool,
 }
 
-struct A_AudioFormat {
+struct AudioFormat {
 	samples_per_second: u32,
 	channels: u32,
 	bytes_per_sample: u32,
 }
 
-struct A_AudioBuffer<'a> {
+struct AudioBuffer<'a> {
 	samples: &'a i16,
 	samples_count: usize,
-	format: A_AudioFormat,
+	format: AudioFormat,
 }
 
 
 // typedef void(*P_AudioCallback)(P_AudioBuffer *buffer);
-type A_AudioCallback = fn(buffer: &A_AudioBuffer);
+type AudioCallback = fn(buffer: &AudioBuffer);
 
 pub struct A_Audio {
-	format: A_AudioFormat,
-	callback: A_AudioCallback,
+	format: AudioFormat,
+	callback: AudioCallback,
 }
 
 struct P_Time {
@@ -140,33 +152,3 @@ struct P_Time {
 	initial_ticks: u64,
 	ticks_per_second: u64,
 }
-
-struct _XINPUT_STATE;
-type XINPUT_STATE = _XINPUT_STATE;
-
-type HANDLE = *mut c_void;
-
-// typedef unsigned long(__stdcall *XINPUTGETSTATE)(unsigned long dwUserIndex, XINPUT_STATE* pState);
-type XINPUTGETSTATE = extern "system" fn(dwUserIndex: u64, a_state: &XINPUT_STATE) -> u64; 
- 
-
-pub struct IAudioClient;
-pub struct IAudioRenderClient;
-
-pub struct A_Win32<'a> {
-	window: HANDLE,
-	device_context: HANDLE,
-
-	main_fiber: *mut c_void,
-	message_fiber: *mut c_void,
-
-	xinput_get_state: XINPUTGETSTATE,
-
-	audio_client: &'a IAudioClient,
-	audio_render_client: &'a IAudioRenderClient,
-
-	wgl_context: HANDLE,
-}
-
-
-
