@@ -1,5 +1,4 @@
 
-#[cfg(target_os = "windows")]
 mod win32;
 
 // Global constants
@@ -112,6 +111,12 @@ pub struct Window<'a> {
 	resized: bool,
 }
 
+impl Window {
+	fn new() -> Window {
+		let title = OsStr::new("Window Class");
+	}
+}
+
 struct Image<'a> {
 	pixels: &'a u8,
     channels: u32,
@@ -182,20 +187,35 @@ pub struct Azurite<'a> {
 	*/
     
 	window: Window<'a>,
-    keys: [DigitalButton; MAX_KEYS],
+    //keys: [DigitalButton; MAX_KEYS],
     gamepad: Gamepad,
     mouse: Mouse,
-	text: String,
+	//text: String,
 	time: Time,
     audio: Audio,
-    #[cfg(target_os = "windows")]
-	win32: &'a win32::Win32<'a>,
+    //#[cfg(target_os = "windows")]
+	//win32: &'a win32::Win32<'a>,
     // /* @platform{macos} */ struct Mu_Cocoa *cocoa;
 }
 
 impl<'a> Azurite<'a> {
-	fn initialize() ->  Azurite<'static> {
+	fn new() ->  Azurite<'static> {
+		let window = Window::new();
+		let time = Time::new();
+		let mouse = Mouse::new();
+		let gamepad = Gamepad::new();
+		let audio = Audio::new();
+		let opengl = OpenGL::new();
 
+		Azurite{
+			window,
+			time,
+			mouse,
+			gamepad,
+			audio,
+			initialized: true,
+			quit: false
+		}
 	}
 
 	fn pull(&self) -> bool {

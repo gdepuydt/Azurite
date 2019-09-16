@@ -26,3 +26,7 @@ pub struct Win32<'a> {
 
 	wgl_context: HANDLE,
 }
+
+
+// registering the window class
+    // let class_name = register_window_class(&window_icon, &taskbar_icon);
