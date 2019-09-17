@@ -1,4 +1,16 @@
 
+use std::{
+	ffi::OsStr,
+	os::windows::ffi::OsStrExt,
+};
+
+use winapi::{
+		um::{ 
+			winuser,
+		}
+};
+
+
 mod win32;
 
 // Global constants
@@ -104,17 +116,24 @@ pub struct Mouse {
 	delta_wheel: usize,
 }
 
-pub struct Window<'a> {
-	title: &'a str,
+pub struct Window {
+	title: String,
 	pos: Int2,
 	size: Int2,
 	resized: bool,
 }
 
+
+// user can first define a simple window struct. this infomation can then be used to create the win32 window (TODO, see per vognsen code)
 impl Window {
-	fn new() -> Window {
-		let title = OsStr::new("Window Class");
-	}
+	fn new(title: String, pos: Int2, size: Int2, resized: bool ) -> Window {
+		Window{
+			title,
+			pos,
+			size,
+			resized,
+		}	
+    }
 }
 
 struct Image<'a> {
@@ -194,13 +213,18 @@ pub struct Azurite<'a> {
 	time: Time,
     audio: Audio,
     //#[cfg(target_os = "windows")]
-	//win32: &'a win32::Win32<'a>,
+	win32: &'a win32::Win32<'a>,
     // /* @platform{macos} */ struct Mu_Cocoa *cocoa;
 }
 
+
+
+
+
 impl<'a> Azurite<'a> {
 	fn new() ->  Azurite<'static> {
-		let window = Window::new();
+		Self::window_initialize();
+		
 		let time = Time::new();
 		let mouse = Mouse::new();
 		let gamepad = Gamepad::new();
@@ -216,6 +240,45 @@ impl<'a> Azurite<'a> {
 			initialized: true,
 			quit: false
 		}
+	}
+
+	pub fn window_initialize() -> bool {
+		let title = OsStr::new("Azurite")
+				.encode_wide()
+				.chain(Some(0).into_iter())
+				.collect::<Vec<_>>();
+
+			// TODO: register class
+
+		let window_x = winuser::CW_USEDEFAULT;
+		let window_y = winuser::CW_USEDEFAULT; 
+		let window_width = winuser::CW_USEDEFAULT;
+		let window_height = winuser::CW_USEDEFAULT;
+		let mut ex_style = winuser::WS_EX_WINDOWEDGE 
+						 | winuser::WS_EX_TOPMOST 
+						 | winuser::WS_EX_NOREDIRECTIONBITMAP 
+						 | winuser::WS_EX_LAYERED 
+						 | winuser::WS_SIZEBOX 
+						 | winuser::WS_MAXIMIZEBOX 
+						 | winuser::WS_CHILD 
+						 | winuser::WS_EX_APPWINDOW;
+
+		let win32_window_handle = winuser::CreateWindowExW(
+    	    ex_style,
+    	    class_name.as_ptr(),
+    	    title.as_ptr() as LPCWSTR,
+    	    style,
+    	    winuser::CW_USEDEFAULT,
+    	    winuser::CW_USEDEFAULT,
+    	    winuser::CW_USEDEFAULT,
+    	    winuser::CW_USEDEFAULT,
+    	    pl_attribs.parent.unwrap_or(ptr::null_mut()),
+    	    ptr::null_mut(),
+    	    libloaderapi::GetModuleHandleW(ptr::null()),
+    	    ptr::null_mut(),
+    	);
+
+		true
 	}
 
 	fn pull(&self) -> bool {

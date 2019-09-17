@@ -30,5 +30,5 @@ features = [
     #"winerror",
     #"wingdi",
     #"winnt",
-    #"winuser",
+    "winuser",
 ]
