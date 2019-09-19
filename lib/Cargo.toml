@@ -17,7 +17,7 @@ features = [
     #"dwmapi",
     #"errhandlingapi",
     #"hidusage",
-    #"libloaderapi",
+    "libloaderapi",
     #"objbase",
     #"ole2",
     #"processthreadsapi",
@@ -29,6 +29,6 @@ features = [
     #"windowsx",
     #"winerror",
     #"wingdi",
-    #"winnt",
+    "winnt",
     "winuser",
 ]

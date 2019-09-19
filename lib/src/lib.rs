@@ -2,12 +2,20 @@
 use std::{
 	ffi::OsStr,
 	os::windows::ffi::OsStrExt,
+	ptr,
+	mem,
 };
 
 use winapi::{
-		um::{ 
-			winuser,
-		}
+	um::{ 
+		winuser,
+		winnt::{LPCWSTR},
+		libloaderapi,
+	},
+		shared::{
+    	minwindef::{UINT},
+		windef::{HWND}
+    },
 };
 
 
@@ -23,7 +31,7 @@ const CTRL: usize = 0x11;
 const ALT: usize = 0x12;
 const SHIFT:usize = 0x10;
 const MAX_AUDIO_BUFFER: usize = 2 * 1024;
-
+/*
 // type A_Bool = u8;
 type SoundSample = i16; 
 
@@ -223,7 +231,7 @@ pub struct Azurite<'a> {
 
 impl<'a> Azurite<'a> {
 	fn new() ->  Azurite<'static> {
-		Self::window_initialize();
+		let win32_window = Self::window_initialize();
 		
 		let time = Time::new();
 		let mouse = Mouse::new();
@@ -232,7 +240,7 @@ impl<'a> Azurite<'a> {
 		let opengl = OpenGL::new();
 
 		Azurite{
-			window,
+			win32: win32_window,
 			time,
 			mouse,
 			gamepad,
@@ -241,20 +249,39 @@ impl<'a> Azurite<'a> {
 			quit: false
 		}
 	}
+*/
+	pub unsafe fn window_initialize() -> HWND {
+		let class_name: Vec<_> = OsStr::new("Window Class")
+        	.encode_wide()
+        	.chain(Some(0).into_iter())
+        	.collect();
+		let title: Vec<_> = OsStr::new("Azurite")
+			.encode_wide()
+			.chain(Some(0).into_iter())
+			.collect();
 
-	pub fn window_initialize() -> bool {
-		let title = OsStr::new("Azurite")
-				.encode_wide()
-				.chain(Some(0).into_iter())
-				.collect::<Vec<_>>();
+		let class = winuser::WNDCLASSEXW {
+        	cbSize: mem::size_of::<winuser::WNDCLASSEXW>() as UINT,
+        	style: winuser::CS_HREDRAW | winuser::CS_VREDRAW | winuser::CS_OWNDC,
+        	lpfnWndProc: Some(winuser::DefWindowProcW),
+        	cbClsExtra: 0,
+        	cbWndExtra: 0,
+        	hInstance: libloaderapi::GetModuleHandleW(ptr::null()),
+        	hIcon: ptr::null_mut(),
+        	hCursor: ptr::null_mut(), // must be null in order for cursor state to work properly
+        	hbrBackground: ptr::null_mut(),
+        	lpszMenuName: ptr::null(),
+        	lpszClassName: class_name.as_ptr(),
+        	hIconSm: ptr::null_mut(),
+    	};
 
-			// TODO: register class
-
-		let window_x = winuser::CW_USEDEFAULT;
-		let window_y = winuser::CW_USEDEFAULT; 
-		let window_width = winuser::CW_USEDEFAULT;
-		let window_height = winuser::CW_USEDEFAULT;
-		let mut ex_style = winuser::WS_EX_WINDOWEDGE 
+		winuser::RegisterClassExW(&class);
+		
+		let window_x = 800;//winuser::CW_USEDEFAULT;
+		let window_y = 800;//winuser::CW_USEDEFAULT; 
+		let window_width = 800;//winuser::CW_USEDEFAULT;
+		let window_height = 800;//winuser::CW_USEDEFAULT;
+		let ex_style = winuser::WS_EX_WINDOWEDGE 
 						 | winuser::WS_EX_TOPMOST 
 						 | winuser::WS_EX_NOREDIRECTIONBITMAP 
 						 | winuser::WS_EX_LAYERED 
@@ -265,22 +292,25 @@ impl<'a> Azurite<'a> {
 
 		let win32_window_handle = winuser::CreateWindowExW(
     	    ex_style,
-    	    class_name.as_ptr(),
+    	    class_name.as_ptr(), //The window name that was registered
     	    title.as_ptr() as LPCWSTR,
-    	    style,
-    	    winuser::CW_USEDEFAULT,
-    	    winuser::CW_USEDEFAULT,
-    	    winuser::CW_USEDEFAULT,
-    	    winuser::CW_USEDEFAULT,
-    	    pl_attribs.parent.unwrap_or(ptr::null_mut()),
-    	    ptr::null_mut(),
-    	    libloaderapi::GetModuleHandleW(ptr::null()),
-    	    ptr::null_mut(),
+    	    winuser::WS_OVERLAPPEDWINDOW,
+    	    window_x,
+			window_y,
+    	    window_width,
+    	    window_height,
+			ptr::null_mut(), // pl_attribs.parent.unwrap_or(ptr::null_mut()),
+			ptr::null_mut(), // ptr::null_mut(),
+			ptr::null_mut(), // libloaderapi::GetModuleHandleW(ptr::null()),
+			ptr::null_mut(), // ptr::null_mut(),   	    
     	);
-
-		true
+		// TODO ?: winuser::SetWindowLongPtrW(win32_window_handle, winuser::GWLP_USERDATA, (LONG_PTR)p);
+		winuser::ShowWindow(win32_window_handle, winuser::SW_SHOW);
+		// TODO: p->win32.device_context = GetDC(p->win32.window);
+		win32_window_handle
+		
 	}
-
+/*
 	fn pull(&self) -> bool {
 		true
 	}
@@ -291,7 +321,7 @@ impl<'a> Azurite<'a> {
 
 }
 
-
+*/
 
 
 // TODO continue image and audio

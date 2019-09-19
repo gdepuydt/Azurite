@@ -8,3 +8,27 @@ edition = "2018"
 
 [dependencies]
 azurite = { path = "../../lib" }
+
+[target.'cfg(target_os = "windows")'.dependencies.winapi]
+version = "0.3.8"
+features = [
+    #"combaseapi",
+    #"commctrl",
+    #"dwmapi",
+    #"errhandlingapi",
+    #"hidusage",
+    #"libloaderapi",
+    #"objbase",
+    #"ole2",
+    #"processthreadsapi",
+    #"shellapi",
+    #"shellscalingapi",
+    #"shobjidl_core",
+    #"unknwnbase",
+    #"winbase",
+    #"windowsx",
+    #"winerror",
+    #"wingdi",
+    #"winnt",
+    "winuser",
+]
