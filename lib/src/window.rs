@@ -47,17 +47,16 @@ pub struct Window {
     window_handle: HWND,
 }
 
-unsafe extern "system"
-    fn window_proc(hWnd: HWND, Msg: UINT, wParam: WPARAM, lParam: LPARAM) -> LRESULT {
-        unimplemented!();
-    }
-
 #[cfg(windows)]
-
-
-pub type WindowProc = unsafe extern "system" fn(HWND, UINT, WPARAM,
-                                                LPARAM)->LRESULT;
-
+unsafe extern "system"
+    fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+        
+        match msg {
+            // TODO
+            _ => DefWindowProcW(hwnd, msg, wparam, lparam)
+        }
+        
+    }
 
 #[cfg(windows)]
 pub fn create_window(title: &str) -> Result<Window, Error> {
