@@ -1,5 +1,6 @@
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
+use std::mem;
 use std::{
         iter::once,
         io::Error,
@@ -9,7 +10,23 @@ use winapi::{
     shared::windef::HWND,
     um::{
         libloaderapi::GetModuleHandleW,
-        winuser::WNDCLASSW,
+        winuser::{
+            DefWindowProcW,
+            RegisterClassW,
+            CreateWindowExW,
+            GetMessageW,
+            TranslateMessage,
+            DispatchMessageW,
+            WNDCLASSW,
+            CS_OWNDC,
+            CS_HREDRAW,
+            CS_VREDRAW,
+            WS_OVERLAPPEDWINDOW,
+            WS_VISIBLE,
+            CW_USEDEFAULT,
+            MSG,
+
+        }
     }
 };
 
@@ -20,8 +37,8 @@ fn win32_string(value: &str) -> Vec<u16> {
 
 #[cfg(windows)]
 // This wrapper struct hides the fact that HWND is unsafe
-struct Window {
-    handle: HWND,
+pub struct Window {
+    window_handle: HWND,
 }
 
 #[cfg(windows)]
@@ -32,13 +49,57 @@ pub fn create_window(title: &str) -> Result<Window, Error> {
     let window_title = win32_string(title);
 
     unsafe {
-        unimplemented!();
         let hinstance = GetModuleHandleW(null_mut());
 
         let win_class = WNDCLASSW {
-
+            style: CS_OWNDC | CS_HREDRAW | CS_VREDRAW,
+            lpfnWndProc: Some(DefWindowProcW),
+            hInstance:  hinstance,
+            lpszClassName: window_name.as_ptr(),
+            cbClsExtra: 0,
+            cbWndExtra: 0,
+            hIcon: null_mut(),
+            hCursor: null_mut(),
+            hbrBackground: null_mut(),
+            lpszMenuName: null_mut(),
         };
 
+        RegisterClassW(&win_class);
+
+        let window_handle = CreateWindowExW(
+            0,
+            window_name.as_ptr(),
+            window_title.as_ptr(),
+            WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+            CW_USEDEFAULT,
+            CW_USEDEFAULT,
+            CW_USEDEFAULT,
+            CW_USEDEFAULT,
+            null_mut(),
+            null_mut(),
+            hinstance,
+            null_mut());
+        
+        if window_handle.is_null() {
+            Err(Error::last_os_error())
+        } else {
+            Ok(Window {window_handle})
+        }
+
+    }
+}
+
+pub fn handle_message(window: &mut Window) -> bool {
+    unsafe {
+        let mut message: MSG = mem::uninitialized();
+        
+        if GetMessageW(&mut message as *mut MSG, window.window_handle,0,0) > 0 {
+            TranslateMessage(&message as *const MSG);
+            DispatchMessageW(&message as *const MSG);
+            true
+        } else {
+            false
+        }
     }
 }
 

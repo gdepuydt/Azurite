@@ -1,12 +1,12 @@
 // #![windows_subsystem = "windows"]
-use azurite::create_window;
+use azurite;
 
 #[cfg(windows)]
 fn main() {
     println!("Hello, world!");
-    let mut window = create_window("Azurite");
+    let mut window = azurite::create_window("Azurite").unwrap();
     loop {
-        if !handle_message(&mut window) {
+        if !azurite::handle_message(&mut window) {
             break;
         }
     }
