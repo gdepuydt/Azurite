@@ -47,10 +47,16 @@ pub struct Window {
     window_handle: HWND,
 }
 
-/* #[cfg(windows)]
-pub fn window_proc(hWnd: HWND, Msg: UINT, wParam: WPARAM, lParam: LPARAM) -> LRESULT {
+unsafe extern "system"
+    fn window_proc(hWnd: HWND, Msg: UINT, wParam: WPARAM, lParam: LPARAM) -> LRESULT {
+        unimplemented!();
+    }
 
-} */
+#[cfg(windows)]
+
+
+pub type WindowProc = unsafe extern "system" fn(HWND, UINT, WPARAM,
+                                                LPARAM)->LRESULT;
 
 
 #[cfg(windows)]
@@ -64,7 +70,7 @@ pub fn create_window(title: &str) -> Result<Window, Error> {
 
         let win_class = WNDCLASSW {
             style: CS_OWNDC | CS_HREDRAW | CS_VREDRAW,
-            lpfnWndProc: Some(DefWindowProcW), //Some(window_proc),
+            lpfnWndProc: Some(window_proc), //Some(DefWindowProcW), 
             hInstance:  hinstance,
             lpszClassName: window_name.as_ptr(),
             cbClsExtra: 0,
