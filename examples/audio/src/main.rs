@@ -1,14 +1,13 @@
+// #![windows_subsystem = "windows"]
 use azurite;
-use winapi::um::winuser;
 
+#[cfg(windows)]
 fn main() {
     println!("Hello, world!");
-    unsafe{
-        let window = azurite::window_initialize();
-        println!("I was here!");
-        // winuser::ShowWindow(window, winuser::SW_SHOW);
-    }
-    while(true) {
-
+    let mut window = create_window("Azurite");
+    loop {
+        if !handle_message(&mut window) {
+            break;
+        }
     }
 }
