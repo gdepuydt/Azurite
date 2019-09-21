@@ -29,6 +29,6 @@ features = [
     #"windowsx",
     #"winerror",
     #"wingdi",
-    "winnt",
+    #"winnt",
     "winuser",
 ]
