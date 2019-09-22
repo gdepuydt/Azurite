@@ -10,26 +10,4 @@ build = "build.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-[target.'cfg(target_os = "windows")'.dependencies.winapi]
-version = "0.3.8"
-features = [
-    #"combaseapi",
-    #"commctrl",
-    #"dwmapi",
-    #"errhandlingapi",
-    #"hidusage",
-    "libloaderapi",
-    #"objbase",
-    #"ole2",
-    #"processthreadsapi",
-    #"shellapi",
-    #"shellscalingapi",
-    #"shobjidl_core",
-    #"unknwnbase",
-    #"winbase",
-    #"windowsx",
-    #"winerror",
-    #"wingdi",
-    #"winnt",
-    "winuser",
-]
+
