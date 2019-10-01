@@ -29,157 +29,56 @@ impl Default for GUID {
     fn default() -> GUID { unsafe { _core::mem::zeroed() } }
 }
 
-
-// This is the huge macro called for implementing IUnknown interface, which I need... I will need a tool to deconstruct this monster
-// C:\dev\winapi-rs\src\macros.rs
-
-#[macro_export]
-macro_rules! RIDL {
-    (#[uuid($l:expr, $w1:expr, $w2:expr,
-        $b1:expr, $b2:expr, $b3:expr, $b4:expr, $b5:expr, $b6:expr, $b7:expr, $b8:expr)]
-    class $class:ident;) => (
-        pub enum $class {}
-        impl $crate::Class for $class {
-            #[inline]
-            fn uuidof() -> $crate::shared::guiddef::GUID {
-                $crate::shared::guiddef::GUID {
-                    Data1: $l,
-                    Data2: $w1,
-                    Data3: $w2,
-                    Data4: [$b1, $b2, $b3, $b4, $b5, $b6, $b7, $b8],
-                }
-            }
-        }
-    );
-    (#[uuid($($uuid:expr),+)]
-    interface $interface:ident ($vtbl:ident) {$(
-        $(#[$($attrs:tt)*])* fn $method:ident($($p:ident : $t:ty,)*) -> $rtr:ty,
-    )+}) => (
-        RIDL!{@vtbl $interface $vtbl () $(
-            $(#[$($attrs)*])* fn $method($($p: $t,)*) -> $rtr,
-        )+}
-        #[repr(C)]
-        pub struct $interface {
-            pub lpVtbl: *const $vtbl,
-        }
-        impl $interface {
-            $(RIDL!{@method $(#[$($attrs)*])* fn $method($($p: $t,)*) -> $rtr})+
-        }
-        RIDL!{@uuid $interface $($uuid),+}
-    );
-    (#[uuid($($uuid:expr),+)]
-    interface $interface:ident ($vtbl:ident) : $pinterface:ident ($pvtbl:ident) {}) => (
-        RIDL!{@vtbl $interface $vtbl (pub parent: $pvtbl,)}
-        #[repr(C)]
-        pub struct $interface {
-            pub lpVtbl: *const $vtbl,
-        }
-        RIDL!{@deref $interface $pinterface}
-        RIDL!{@uuid $interface $($uuid),+}
-    );
-    (#[uuid($($uuid:expr),+)]
-    interface $interface:ident ($vtbl:ident) : $pinterface:ident ($pvtbl:ident) {$(
-        $(#[$($attrs:tt)*])* fn $method:ident($($p:ident : $t:ty,)*) -> $rtr:ty,
-    )+}) => (
-        RIDL!{@vtbl $interface $vtbl (pub parent: $pvtbl,) $(
-            $(#[$($attrs)*])* fn $method($($p: $t,)*) -> $rtr,
-        )+}
-        #[repr(C)]
-        pub struct $interface {
-            pub lpVtbl: *const $vtbl,
-        }
-        impl $interface {
-            $(RIDL!{@method $(#[$($attrs)*])* fn $method($($p: $t,)*) -> $rtr})+
-        }
-        RIDL!{@deref $interface $pinterface}
-        RIDL!{@uuid $interface $($uuid),+}
-    );
-    (@deref $interface:ident $pinterface:ident) => (
-        impl $crate::_core::ops::Deref for $interface {
-            type Target = $pinterface;
-            #[inline]
-            fn deref(&self) -> &$pinterface {
-                unsafe { &*(self as *const $interface as *const $pinterface) }
-            }
-        }
-    );
-    (@method fn $method:ident($($p:ident : $t:ty,)*) -> $rtr:ty) => (
-        #[inline] pub unsafe fn $method(&self, $($p: $t,)*) -> $rtr {
-            ((*self.lpVtbl).$method)(self as *const _ as *mut _, $($p,)*)
-        }
-    );
-    (@method #[fixme] fn $method:ident($($p:ident : $t:ty,)*) -> $rtr:ty) => (
-        #[inline] pub unsafe fn $method(&self, $($p: $t,)*) -> $rtr {
-            let mut ret = $crate::_core::mem::uninitialized();
-            ((*self.lpVtbl).$method)(self as *const _ as *mut _, &mut ret, $($p,)*);
-            ret
-        }
-    );
-    (@vtbl $interface:ident $vtbl:ident ($($fields:tt)*)
-        $(fn $method:ident($($p:ident : $t:ty,)*) -> $rtr:ty,)*
-    ) => (
-        RIDL!{@item #[repr(C)]
-        pub struct $vtbl {
-            $($fields)*
-            $(pub $method: unsafe extern "system" fn(
-                This: *mut $interface,
-                $($p: $t,)*
-            ) -> $rtr,)*
-        }}
-    );
-    (@vtbl $interface:ident $vtbl:ident ($($fields:tt)*)
-        fn $method:ident($($p:ident : $t:ty,)*) -> $rtr:ty,
-    $($tail:tt)*) => (
-        RIDL!{@vtbl $interface $vtbl (
-            $($fields)*
-            pub $method: unsafe extern "system" fn(
-                This: *mut $interface,
-                $($p: $t,)*
-            ) -> $rtr,
-        ) $($tail)*}
-    );
-    (@vtbl $interface:ident $vtbl:ident ($($fields:tt)*)
-        #[fixme] fn $method:ident($($p:ident : $t:ty,)*) -> $rtr:ty,
-    $($tail:tt)*) => (
-        RIDL!{@vtbl $interface $vtbl (
-            $($fields)*
-            pub $method: unsafe extern "system" fn(
-                This: *mut $interface,
-                ret: *mut $rtr,
-                $($p: $t,)*
-            ) -> *mut $rtr,
-        ) $($tail)*}
-    );
-    (@uuid $interface:ident
-        $l:expr, $w1:expr, $w2:expr,
-        $b1:expr, $b2:expr, $b3:expr, $b4:expr, $b5:expr, $b6:expr, $b7:expr, $b8:expr
-    ) => (
-        impl $crate::Interface for $interface {
-            #[inline]
-            fn uuidof() -> $crate::shared::guiddef::GUID {
-                $crate::shared::guiddef::GUID {
-                    Data1: $l,
-                    Data2: $w1,
-                    Data3: $w2,
-                    Data4: [$b1, $b2, $b3, $b4, $b5, $b6, $b7, $b8],
-                }
-            }
-        }
-    );
-    (@item $thing:item) => ($thing);
-}
-
-// This is the macro call for implementing the IUnknown interface...
-// C:\dev\winapi-rs\src\um\unknwnbase.rs
-RIDL!{#[uuid(0x00000000, 0x0000, 0x0000, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46)]
-interface IUnknown(IUnknownVtbl) {
-    fn QueryInterface(
+#[repr(C)]
+pub struct IUnknownVtbl {
+    pub QueryInterface: unsafe extern "system" fn(
+        This: *mut IUnknown,
         riid: REFIID,
         ppvObject: *mut *mut c_void,
     ) -> HRESULT,
-    fn AddRef() -> ULONG,
-    fn Release() -> ULONG,
-}}
+    pub AddRef: unsafe extern "system" fn(
+        This: *mut IUnknown,
+    ) -> HRESULT,
+    pub Release: unsafe extern "system" fn(
+        This: *mut IUnknown,
+    ) -> HRESULT,
+}
+
+pub trait Interface {
+    // Returns the IID of the Interface
+    fn uuidof() -> GUID;
+}
+
+#[repr(C)]
+pub struct IUnknown {
+    pub lpVtbl: *const IUnknownVtbl,
+}
+
+// https://docs.microsoft.com/en-us/windows/win32/com/queryinterface--navigating-in-an-object
+impl IUnknown {
+            #[inline] pub unsafe fn QueryInterface(&self, riid: REFIID, ppvObject: *mut *mut c_void) -> HRESULT {
+                ((*self.lpVtbl).QueryInterface)(self as *const _ as *mut _, riid, ppvObject)
+            }
+            #[inline] pub unsafe fn AddRef(&self) -> HRESULT {
+                ((*self.lpVtbl).AddRef)(self as *const _ as *mut _)
+            }
+            #[inline] pub unsafe fn Release(&self) -> HRESULT {
+                ((*self.lpVtbl).Release)(self as *const _ as *mut _)
+            }
+}
+
+impl Interface for IUnknown {
+    #[inline]
+    fn uuidof() -> GUID {
+        GUID {
+            Data1: 0x00000000,
+            Data2: 0x0000,
+            Data3: 0x0000,
+            Data4: [0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46],
+        }
+    }
+}
+
 pub type LPUNKNOWN = *mut IUnknown;
 
 type c_uchar = u8;
