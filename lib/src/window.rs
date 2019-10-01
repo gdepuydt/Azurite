@@ -11,7 +11,7 @@ use std::ptr::null_mut;
 #[repr(C)] 
 #[derive(Copy)]
 #[cfg_attr(feature = "impl-debug", derive(Debug))]
-struct GUID {
+pub struct GUID {
     Data1: c_ulong,
     Data2: c_ushort,
     Data3: c_ushort,
@@ -121,6 +121,44 @@ const WS_MINIMIZEBOX: DWORD = 0x00020000;
 const WS_MAXIMIZEBOX: DWORD = 0x00010000;
 const WS_OVERLAPPEDWINDOW: DWORD = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
 
+// TODO replace ENUM! macro
+#[macro_export]
+macro_rules! ENUM {
+    {enum $name:ident { $($variant:ident = $value:expr,)+ }} => {
+        pub type $name = u32;
+        $(pub const $variant: $name = $value;)+
+    };
+    {enum $name:ident { $variant:ident = $value:expr, $($rest:tt)* }} => {
+        pub type $name = u32;
+        pub const $variant: $name = $value;
+        ENUM!{@gen $name $variant, $($rest)*}
+    };
+    {enum $name:ident { $variant:ident, $($rest:tt)* }} => {
+        ENUM!{enum $name { $variant = 0, $($rest)* }}
+    };
+    {@gen $name:ident $base:ident,} => {};
+    {@gen $name:ident $base:ident, $variant:ident = $value:expr, $($rest:tt)*} => {
+        pub const $variant: $name = $value;
+        ENUM!{@gen $name $variant, $($rest)*}
+    };
+    {@gen $name:ident $base:ident, $variant:ident, $($rest:tt)*} => {
+        pub const $variant: $name = $base + 1u32;
+        ENUM!{@gen $name $variant, $($rest)*}
+    };
+}
+
+ENUM!{enum PROCESS_DPI_AWARENESS {
+    PROCESS_DPI_UNAWARE = 0,
+    PROCESS_SYSTEM_DPI_AWARE = 1,
+    PROCESS_PER_MONITOR_DPI_AWARE = 2,
+}}
+ENUM!{enum MONITOR_DPI_TYPE {
+    MDT_EFFECTIVE_DPI = 0,
+    MDT_ANGULAR_DPI = 1,
+    MDT_RAW_DPI = 2,
+    MDT_DEFAULT = MDT_EFFECTIVE_DPI,
+}}
+
 pub enum HWND__ {}
 type HWND = *mut HWND__;
 
@@ -142,6 +180,9 @@ type HBRUSH = *mut HBRUSH__;
 type HMODULE = HINSTANCE;
 
 type WNDPROC = Option<unsafe extern "system" fn(_: HWND, _: UINT, _: WPARAM, _: LPARAM) -> LRESULT>;
+
+pub enum HMONITOR__ {}
+type HMONITOR = *mut HMONITOR__;
 
 #[cfg(windows)]
 fn win32_string(value: &str) -> Vec<u16> {
