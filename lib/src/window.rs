@@ -166,8 +166,18 @@ type HMONITOR = *mut HMONITOR__;
 pub enum __some_function {}
 
 #[cfg(windows)]
-fn win32_string(value: &str) -> Vec<u16> {
+fn to_wide(value: &str) -> Vec<u16> {
     OsStr::new(value).encode_wide().chain(once(0)).collect()
+}
+
+pub trait ToWide {
+    fn to_wide(&self) -> Vec<u16>;
+}
+
+impl<T> ToWide for T where T: AsRef<OsStr> {
+    fn to_wide(&self) -> Vec<u16> {
+        self.as_ref().encode_wide().chain(once(0)).collect()
+    }
 }
 
 #[cfg(windows)]
@@ -205,6 +215,7 @@ extern "system" {
     pub fn DispatchMessageW(lpmsg: *const MSG) -> LRESULT;
     pub fn TranslateMessage(lpmsg: *const MSG) -> BOOL;
     pub fn GetProcAddress(hModule: HMODULE, lpProcName: LPCSTR) -> FARPROC;
+    pub fn LoadLibraryW(lpFileName: LPCWSTR) -> HMODULE;
 }
 
 // from shcore.dll
@@ -225,32 +236,84 @@ pub struct OptionalFunctions {
     pub CreateDXGIFactory2: Option<CreateDXGIFactory2>,
 }
 
-fn load_optional_functions() -> OptionalFunctions {
+pub fn load_optional_functions() -> OptionalFunctions {
     
     macro_rules! load_function {
         ($lib: expr, $function: ident, $min_windows_version: expr) => {{
-            let name = stringify!($function);
-            let cstr = CString::new(name).unwrap();
+            let function_name = stringify!($function);
+            let lib_name = stringify!($lib);
+            let cstr = CString::new(function_name).unwrap();
             let function_ptr = unsafe { GetProcAddress($lib, cstr.as_ptr())}; // https://doc.rust-lang.org/nightly/std/ffi/struct.CString.html
             if function_ptr.is_null() {
-                // todo: use simple console output
-                
+                                
 // for building debug info
 // https://doc.rust-lang.org/std/macro.module_path.html
 // https://doc.rust-lang.org/std/macro.file.html
 
-                error!("Could not load `{}`. Windows {} or later is needed", 
-                name, $min_windows_version);
+                println!("Could not load `{}`. Windows {} or later is needed", 
+                function_name, $min_windows_version);
             }
             else {
                 // https://doc.rust-lang.org/std/mem/fn.transmute.html
                 let function = unsafe { mem::transmute::<_, $function>(function_ptr)};
                 $function = Some(function);
+                println!("Loaded function {} from library {}", function_name, lib_name);
             }
         }}
     }
 
-    // TODO
+    fn load_library(name: &str) -> HMODULE {
+        let encoded_name = name.to_wide();
+
+        let library = unsafe {GetModuleHandleW(encoded_name.as_ptr())};
+        if !library.is_null() {
+            return library;
+        }
+
+        let library = unsafe {LoadLibraryW(encoded_name.as_ptr())};
+        return library;
+    }
+
+    let shcore = load_library("shcore.dll");
+    let user32 = load_library("user32.dll");
+    let dcomp = load_library("dcomp.dll");
+    let dxgi = load_library("dxgi.dll");
+
+    let mut GetDpiForSystem = None;
+    let mut GetDpiForMonitor = None;
+    let mut SetProcessDpiAwareness = None;
+    let mut DCompositionCreateDevice2 = None;
+    let mut CreateDXGIFactory2 = None;
+
+    if shcore.is_null() {
+        println!("No shcore.dll");
+    } else {
+        load_function!(shcore, SetProcessDpiAwareness, "8.1");
+        load_function!(shcore, GetDpiForMonitor, "8.1");
+    }
+
+    if user32.is_null() {
+        println!("No user32.dll");
+    } else {
+        load_function!(user32, GetDpiForSystem, "10");
+    }
+
+    if !dcomp.is_null() {
+        load_function!(dcomp, DCompositionCreateDevice2, "8.1");
+    }
+
+    if !dxgi.is_null() {
+        load_function!(dxgi, CreateDXGIFactory2, "8.1");
+    }
+
+    OptionalFunctions {
+        GetDpiForSystem,
+        GetDpiForMonitor,
+        SetProcessDpiAwareness,
+        DCompositionCreateDevice2,
+        CreateDXGIFactory2,
+    }
+
 }
 
 #[repr(C)]
@@ -303,8 +366,8 @@ Start of the actual user code
 #[cfg(windows)]
 pub fn create_window(title: &str) -> Result<Window, Error> {
     
-    let window_name = win32_string("azurite_window");
-    let window_title = win32_string(title);
+    let window_name = "azurite_window".to_wide();
+    let window_title = title.to_wide();
 
     unsafe {
         let hinstance = GetModuleHandleW(null_mut());
