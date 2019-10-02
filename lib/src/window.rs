@@ -8,6 +8,11 @@ use std::mem;
 use std::iter::once;
 use std::io::Error;
 use std::ptr::null_mut;
+use std::cell::Cell;
+use std::sync::Once;
+use std::sync::ONCE_INIT;
+use core::ops::Deref;
+use std::hint::unreachable_unchecked;
 
 #[repr(C)] 
 #[derive(Copy)]
@@ -165,11 +170,6 @@ type HMONITOR = *mut HMONITOR__;
 
 pub enum __some_function {}
 
-#[cfg(windows)]
-fn to_wide(value: &str) -> Vec<u16> {
-    OsStr::new(value).encode_wide().chain(once(0)).collect()
-}
-
 pub trait ToWide {
     fn to_wide(&self) -> Vec<u16>;
 }
@@ -236,7 +236,9 @@ pub struct OptionalFunctions {
     pub CreateDXGIFactory2: Option<CreateDXGIFactory2>,
 }
 
-pub fn load_optional_functions() -> OptionalFunctions {
+
+
+fn load_optional_functions() -> OptionalFunctions {
     
     macro_rules! load_function {
         ($lib: expr, $function: ident, $min_windows_version: expr) => {{
@@ -315,10 +317,73 @@ pub fn load_optional_functions() -> OptionalFunctions {
     }
 
 }
-// remove macro
-/* lazy_static! {
-    pub static ref OPTIONAL_FUNCTIONS: OptionalFunctions = load_optional_functions();
-} */
+pub struct Lazy<T: Sync>(Cell<Option<T>>, Once);
+
+impl<T: Sync> Lazy<T> {
+    #[allow(deprecated)]
+    pub const INIT: Self = Lazy(Cell::new(None), ONCE_INIT);
+
+    // https://doc.rust-lang.org/std/ops/trait.FnOnce.html
+    #[inline(always)]
+    pub fn get<F>(&'static self, f: F) -> &T
+    where
+        F: FnOnce() -> T,
+    {
+        self.1.call_once(|| {
+            // One time static initialization step to load optional system library functions...;
+            self.0.set(Some(f()));
+        });
+
+        // `self.0` is guaranteed to be `Some` by this point
+        // The `Once` will catch and propagate panics
+        unsafe {
+            match *self.0.as_ptr() {
+                // "Created reference to optional system library functions."
+                Some(ref x) =>  x,
+                None => {
+                    debug_assert!(false, "attempted to derefence an uninitialized lazy static. This is a bug");
+
+                    unreachable_unchecked()
+                },
+            }
+        }
+    }
+}
+
+unsafe impl<T: Sync> Sync for Lazy<T> {}
+
+#[allow(missing_copy_implementations)]
+#[allow(non_camel_case_types)]
+#[allow(dead_code)]
+pub struct OPTIONAL_FUNCTIONS {__private_field: ()}
+#[doc(hidden)]
+pub static OPTIONAL_FUNCTIONS: OPTIONAL_FUNCTIONS = OPTIONAL_FUNCTIONS {__private_field: ()};
+
+impl Deref for OPTIONAL_FUNCTIONS {
+    type Target = OptionalFunctions;
+    fn deref(&self) -> &OptionalFunctions {
+        #[inline(always)]
+        fn __static_ref_initialize() -> OptionalFunctions { load_optional_functions() };
+        #[inline(always)]
+        fn __stability() -> &'static OptionalFunctions {
+            static LAZY: Lazy<OptionalFunctions> = Lazy::INIT;
+            LAZY.get(__static_ref_initialize)
+        }
+        __stability()
+    }
+}
+
+pub trait LazyStatic {
+    #[doc(hidden)]
+    fn initialize(lazy: &Self);
+}
+
+impl LazyStatic for OPTIONAL_FUNCTIONS {
+    fn initialize(lazy: &Self) {
+        let _ = &**lazy;
+    }
+}
+
 
 #[repr(C)]
 pub struct WNDCLASSW {
