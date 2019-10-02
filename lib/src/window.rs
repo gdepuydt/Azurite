@@ -2,6 +2,7 @@
 
 use std::ffi::OsStr;
 use std::ffi::c_void;
+use std::ffi::CString;
 use std::os::windows::ffi::OsStrExt;
 use std::mem;
 use std::iter::once;
@@ -97,6 +98,9 @@ type DWORD = c_ulong;
 type ATOM = WORD;
 type WCHAR = wchar_t;
 type LPCWSTR = *const WCHAR;
+type LPCSTR = *const CHAR;
+type CHAR = c_char;
+type c_char = i8;
 type LPVOID = *mut c_void;
 type LPMSG = *mut MSG;
 type BOOL = c_int;
@@ -107,6 +111,7 @@ type LONG = c_long;
 type HRESULT = c_long;
 pub type IID = GUID;
 type REFIID = *const IID;
+type FARPROC = *mut __some_function;
 
 const CS_OWNDC: UINT = 0x0020;
 const CS_HREDRAW: UINT = 0x0002;
@@ -120,32 +125,6 @@ const WS_THICKFRAME: DWORD = 0x00040000;
 const WS_MINIMIZEBOX: DWORD = 0x00020000;
 const WS_MAXIMIZEBOX: DWORD = 0x00010000;
 const WS_OVERLAPPEDWINDOW: DWORD = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
-
-// TODO replace ENUM! macro
-#[macro_export]
-macro_rules! ENUM {
-    {enum $name:ident { $($variant:ident = $value:expr,)+ }} => {
-        pub type $name = u32;
-        $(pub const $variant: $name = $value;)+
-    };
-    {enum $name:ident { $variant:ident = $value:expr, $($rest:tt)* }} => {
-        pub type $name = u32;
-        pub const $variant: $name = $value;
-        ENUM!{@gen $name $variant, $($rest)*}
-    };
-    {enum $name:ident { $variant:ident, $($rest:tt)* }} => {
-        ENUM!{enum $name { $variant = 0, $($rest)* }}
-    };
-    {@gen $name:ident $base:ident,} => {};
-    {@gen $name:ident $base:ident, $variant:ident = $value:expr, $($rest:tt)*} => {
-        pub const $variant: $name = $value;
-        ENUM!{@gen $name $variant, $($rest)*}
-    };
-    {@gen $name:ident $base:ident, $variant:ident, $($rest:tt)*} => {
-        pub const $variant: $name = $base + 1u32;
-        ENUM!{@gen $name $variant, $($rest)*}
-    };
-}
 
 pub type PROCESS_DPI_AWARENESS = u32;
 pub const PROCESS_DPI_UNAWARE: PROCESS_DPI_AWARENESS = 0;
@@ -183,6 +162,8 @@ type WNDPROC = Option<unsafe extern "system" fn(_: HWND, _: UINT, _: WPARAM, _: 
 
 pub enum HMONITOR__ {}
 type HMONITOR = *mut HMONITOR__;
+
+pub enum __some_function {}
 
 #[cfg(windows)]
 fn win32_string(value: &str) -> Vec<u16> {
@@ -223,6 +204,7 @@ extern "system" {
     pub fn GetMessageW(lpMsg: LPMSG, hWnd: HWND, wMsgFilterMin: UINT, wMsgFilterMax: UINT) -> BOOL;
     pub fn DispatchMessageW(lpmsg: *const MSG) -> LRESULT;
     pub fn TranslateMessage(lpmsg: *const MSG) -> BOOL;
+    pub fn GetProcAddress(hModule: HMODULE, lpProcName: LPCSTR) -> FARPROC;
 }
 
 // from shcore.dll
@@ -233,6 +215,43 @@ type GetDpiForMonitor = unsafe extern "system" fn(HMONITOR, MONITOR_DPI_TYPE, *m
 type SetProcessDpiAwareness = unsafe extern "system" fn(PROCESS_DPI_AWARENESS) ->HRESULT;
 type DCompositionCreateDevice2 = unsafe extern "system" fn(renderingDevice: *const IUnknown, iid: REFIID, dcompositionDevice: *mut *mut c_void,) -> HRESULT;
 type CreateDXGIFactory2 = unsafe extern "system" fn(Flags: UINT, riid: REFIID, ppFactory: *mut *mut c_void) -> HRESULT;
+
+#[allow(non_snake_case)]
+pub struct OptionalFunctions {
+    pub GetDpiForSystem: Option<GetDpiForSystem>,
+    pub GetDpiForMonitor: Option<GetDpiForMonitor>,
+    pub SetProcessDpiAwareness: Option<SetProcessDpiAwareness>,
+    pub DCompositionCreateDevice2: Option<DCompositionCreateDevice2>,
+    pub CreateDXGIFactory2: Option<CreateDXGIFactory2>,
+}
+
+fn load_optional_functions() -> OptionalFunctions {
+    
+    macro_rules! load_function {
+        ($lib: expr, $function: ident, $min_windows_version: expr) => {{
+            let name = stringify!($function);
+            let cstr = CString::new(name).unwrap();
+            let function_ptr = unsafe { GetProcAddress($lib, cstr.as_ptr())}; // https://doc.rust-lang.org/nightly/std/ffi/struct.CString.html
+            if function_ptr.is_null() {
+                // todo: use simple console output
+                
+// for building debug info
+// https://doc.rust-lang.org/std/macro.module_path.html
+// https://doc.rust-lang.org/std/macro.file.html
+
+                error!("Could not load `{}`. Windows {} or later is needed", 
+                name, $min_windows_version);
+            }
+            else {
+                // https://doc.rust-lang.org/std/mem/fn.transmute.html
+                let function = unsafe { mem::transmute::<_, $function>(function_ptr)};
+                $function = Some(function);
+            }
+        }}
+    }
+
+    // TODO
+}
 
 #[repr(C)]
 pub struct WNDCLASSW {
