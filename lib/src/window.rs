@@ -315,6 +315,10 @@ pub fn load_optional_functions() -> OptionalFunctions {
     }
 
 }
+// remove macro
+/* lazy_static! {
+    pub static ref OPTIONAL_FUNCTIONS: OptionalFunctions = load_optional_functions();
+} */
 
 #[repr(C)]
 pub struct WNDCLASSW {
