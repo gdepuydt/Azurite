@@ -1,0 +1,2 @@
+- simplify the dynamic loading of system library functions
+- remove the build.rs dependency and load everything dynamically?
