@@ -1,2 +1,3 @@
 - simplify the dynamic loading of system library functions
-- remove the build.rs dependency and load everything dynamically?
+- remove the build.rs dependency and load everything at run-time?
+  -this is not possible. As I need a win32 function to do so in the first place 
