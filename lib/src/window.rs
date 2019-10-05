@@ -238,7 +238,7 @@ pub struct OptionalFunctions {
 
 
 
-fn load_optional_functions() -> OptionalFunctions {
+fn load_optional_functions() -> Option<OptionalFunctions> {
     
     macro_rules! load_function {
         ($lib: expr, $function: ident, $min_windows_version: expr) => {{
@@ -246,12 +246,7 @@ fn load_optional_functions() -> OptionalFunctions {
             let lib_name = stringify!($lib);
             let cstr = CString::new(function_name).unwrap();
             let function_ptr = unsafe { GetProcAddress($lib, cstr.as_ptr())}; // https://doc.rust-lang.org/nightly/std/ffi/struct.CString.html
-            if function_ptr.is_null() {
-                                
-// for building debug info
-// https://doc.rust-lang.org/std/macro.module_path.html
-// https://doc.rust-lang.org/std/macro.file.html
-
+            if function_ptr.is_null() {                
                 println!("Could not load `{}`. Windows {} or later is needed", 
                 function_name, $min_windows_version);
             }
@@ -308,79 +303,40 @@ fn load_optional_functions() -> OptionalFunctions {
         load_function!(dxgi, CreateDXGIFactory2, "8.1");
     }
 
-    OptionalFunctions {
+    Some(OptionalFunctions {
         GetDpiForSystem,
         GetDpiForMonitor,
         SetProcessDpiAwareness,
         DCompositionCreateDevice2,
         CreateDXGIFactory2,
-    }
-
-}
-pub struct Lazy<T: Sync>(Cell<Option<T>>, Once);
-
-impl<T: Sync> Lazy<T> {
-    #[allow(deprecated)]
-    pub const INIT: Self = Lazy(Cell::new(None), ONCE_INIT);
-
-    // https://doc.rust-lang.org/std/ops/trait.FnOnce.html
-    #[inline(always)]
-    pub fn get<F>(&'static self, f: F) -> &T
-    where
-        F: FnOnce() -> T,
-    {
-        self.1.call_once(|| {
-            // One time static initialization step to load optional system library functions...;
-            self.0.set(Some(f()));
-        });
-
-        // `self.0` is guaranteed to be `Some` by this point
-        // The `Once` will catch and propagate panics
-        unsafe {
-            match *self.0.as_ptr() {
-                // "Created reference to optional system library functions."
-                Some(ref x) =>  x,
-                None => {
-                    debug_assert!(false, "attempted to derefence an uninitialized lazy static. This is a bug");
-
-                    unreachable_unchecked()
-                },
-            }
-        }
-    }
+    })
 }
 
-unsafe impl<T: Sync> Sync for Lazy<T> {}
 
-#[allow(missing_copy_implementations)]
-#[allow(non_camel_case_types)]
-#[allow(dead_code)]
-pub struct OPTIONAL_FUNCTIONS {__private_field: ()}
-#[doc(hidden)]
-pub static OPTIONAL_FUNCTIONS: OPTIONAL_FUNCTIONS = OPTIONAL_FUNCTIONS {__private_field: ()};
+pub struct OPTIONAL_FUNCTIONS {
+    optional_functions: Cell<Option<OptionalFunctions>>,
+}
+
+static INIT: Once = Once::new();
+pub static OPTIONAL_FUNCTIONS: OPTIONAL_FUNCTIONS = OPTIONAL_FUNCTIONS{optional_functions: Cell::new(None)} ;
+unsafe impl Sync for OPTIONAL_FUNCTIONS<> {}
 
 impl Deref for OPTIONAL_FUNCTIONS {
     type Target = OptionalFunctions;
+    
     fn deref(&self) -> &OptionalFunctions {
-        #[inline(always)]
-        fn __static_ref_initialize() -> OptionalFunctions { load_optional_functions() };
-        #[inline(always)]
-        fn __stability() -> &'static OptionalFunctions {
-            static LAZY: Lazy<OptionalFunctions> = Lazy::INIT;
-            LAZY.get(__static_ref_initialize)
+        
+        INIT.call_once(|| { OPTIONAL_FUNCTIONS.optional_functions.set(load_optional_functions())});
+        unsafe {
+            match *OPTIONAL_FUNCTIONS.optional_functions.as_ptr() {
+                // "Created reference to optional system library functions."
+                Some(ref x) =>  x,
+                None => {
+                    debug_assert!(false, "attempted to derefence an uninitialized value. This is a bug");
+                    unreachable_unchecked()
+                }
+            }
         }
-        __stability()
-    }
-}
-
-pub trait LazyStatic {
-    #[doc(hidden)]
-    fn initialize(lazy: &Self);
-}
-
-impl LazyStatic for OPTIONAL_FUNCTIONS {
-    fn initialize(lazy: &Self) {
-        let _ = &**lazy;
     }
 }
 
