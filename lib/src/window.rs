@@ -313,6 +313,11 @@ fn load_optional_functions() -> Option<OptionalFunctions> {
 }
 
 
+
+
+//
+//lazy static loading: technique borrowed from the lazy_static crate
+//
 pub struct OPTIONAL_FUNCTIONS {
     optional_functions: Cell<Option<OptionalFunctions>>,
 }
@@ -340,6 +345,9 @@ impl Deref for OPTIONAL_FUNCTIONS {
     }
 }
 
+//
+// 
+//
 
 #[repr(C)]
 pub struct WNDCLASSW {
