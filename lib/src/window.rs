@@ -445,26 +445,10 @@ Start of the actual user code
 #[cfg(windows)]
 pub fn create_window(title: &str) -> Result<Window, Error> {
     
-    let window_name = "azurite_window".to_wide();
     let window_title = title.to_wide();
 
     unsafe {
-        let hinstance = GetModuleHandleW(null_mut());
-
-        let win_class = WNDCLASSW {
-            style: CS_OWNDC | CS_HREDRAW | CS_VREDRAW,
-            lpfnWndProc: Some(window_proc), //Some(DefWindowProcW), 
-            hInstance:  hinstance,
-            lpszClassName: window_name.as_ptr(),
-            cbClsExtra: 0,
-            cbWndExtra: 0,
-            hIcon: null_mut(),
-            hCursor: null_mut(),
-            hbrBackground: null_mut(),
-            lpszMenuName: null_mut(),
-        };
-
-        RegisterClassW(&win_class);
+        
 
         let window_handle = CreateWindowExW(
             0,
@@ -503,12 +487,38 @@ pub fn handle_message(window: &mut Window) -> bool {
 }
 
 pub fn init() {
+    
     attach_console();
+    
     if let Some(func) = OPTIONAL_FUNCTIONS.SetProcessDpiAwareness {
         unsafe {
             func(PROCESS_SYSTEM_DPI_AWARE);
             println!("DPI aware mode set.");
         }
+    }
+    
+    let window_name = "azurite_window".to_wide();
+    let hinstance = GetModuleHandleW(null_mut());
+    
+    unsafe{
+        // TODO: implement Icon and Brush function calls
+        
+        let icon = 0 ;
+        let brush = 0;
+        
+        let win_class = WNDCLASSW {
+            style: CS_OWNDC | CS_HREDRAW | CS_VREDRAW,
+            lpfnWndProc: Some(window_proc), //Some(DefWindowProcW), 
+            hInstance:  hinstance,
+            lpszClassName: window_name.as_ptr(),
+            cbClsExtra: 0,
+            cbWndExtra: 0,
+            hIcon: icon,
+            hCursor: null_mut(),
+            hbrBackground: brush,
+            lpszMenuName: null_mut(),
+        };
+        RegisterClassW(&win_class);
     }
 }
 
