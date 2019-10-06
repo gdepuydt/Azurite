@@ -110,7 +110,7 @@ pub type LPUNKNOWN = *mut IUnknown;
 type c_uchar = u8;
 type c_ushort = u16;
 type c_uint = u64;
-type c_ulong = u64;
+type c_ulong = u32;
 type wchar_t = u16;
 type c_int = i32;
 type c_long = i32;
@@ -153,6 +153,7 @@ const WS_MINIMIZEBOX: DWORD = 0x00020000;
 const WS_MAXIMIZEBOX: DWORD = 0x00010000;
 const WS_OVERLAPPEDWINDOW: DWORD = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
 const STD_OUTPUT_HANDLE: DWORD = 0xFFFFFFF5;
+const STD_ERROR_HANDLE: DWORD = -12i32 as u32;
 const INVALID_HANDLE_VALUE: HANDLE = -1isize as HANDLE;
 const FILE_TYPE_UNKNOWN: DWORD = 0x0000;
 const ATTACH_PARENT_PROCESS: DWORD = 0xFFFFFFFF;
@@ -160,6 +161,7 @@ const GENERIC_READ: DWORD = 0x80000000;
 const GENERIC_WRITE: DWORD = 0x40000000;
 const FILE_SHARE_WRITE: DWORD = 0x00000002;
 const OPEN_EXISTING: DWORD = 3;
+
 
 
 pub type PROCESS_DPI_AWARENESS = u32;
@@ -259,6 +261,7 @@ extern "system" {
     pub fn GetStdHandle(nStdHandle: DWORD) -> HANDLE;
     pub fn GetFileType(hFile: HANDLE) -> DWORD;
     pub fn AttachConsole(dwProcessId: DWORD) -> BOOL;
+    pub fn SetStdHandle(nStdHandle: DWORD, hHandle: HANDLE) -> BOOL;
 }
 
 // from shcore.dll
@@ -501,17 +504,32 @@ pub fn handle_message(window: &mut Window) -> bool {
 
 pub fn init() {
     attach_console();
+    if let Some(func) = OPTIONAL_FUNCTIONS.SetProcessDpiAwareness {
+        unsafe {
+            func(PROCESS_SYSTEM_DPI_AWARE);
+            println!("DPI aware mode set.");
+        }
+    }
 }
 
 fn attach_console() {
     unsafe {
          let stdout = GetStdHandle(STD_OUTPUT_HANDLE);
          if stdout != INVALID_HANDLE_VALUE && GetFileType(stdout) != FILE_TYPE_UNKNOWN {
-             return;
+            println!("Existing console already attached to main process."); 
+            return;
          }
          if AttachConsole(ATTACH_PARENT_PROCESS) > 0 {
-            let chnd = CreateFileA(CString::new("CONOUT$").unwrap().as_ptr(), GENERIC_READ| GENERIC_WRITE, FILE_SHARE_WRITE, ptr::null_mut(), OPEN_EXISTING, 0, ptr::null_mut(),);
+            let chnd = CreateFileA(CString::new("CONOUT$").unwrap().as_ptr(), GENERIC_READ| GENERIC_WRITE, FILE_SHARE_WRITE, null_mut(), OPEN_EXISTING, 0, null_mut(),);
+            if chnd == INVALID_HANDLE_VALUE {
+                return;
+            }
+
+            SetStdHandle(STD_OUTPUT_HANDLE, chnd);
+            SetStdHandle(STD_ERROR_HANDLE, chnd);
+            println!("Console attached to main process.");
          }
+
     }
 }
 
