@@ -10,7 +10,6 @@ use std::io::Error;
 use std::ptr::null_mut;
 use std::cell::Cell;
 use std::sync::Once;
-use std::sync::ONCE_INIT;
 use core::ops::Deref;
 use std::hint::unreachable_unchecked;
 
@@ -34,6 +33,27 @@ impl Default for GUID {
     #[inline]
     fn default() -> GUID { unsafe { _core::mem::zeroed() } }
 }
+
+#[repr(C)] 
+#[derive(Copy)]
+#[cfg_attr(feature = "impl-debug", derive(Debug))]
+pub struct SECURITY_ATTRIBUTES {
+    nLength: DWORD,
+    lpSecurityDescriptor: LPVOID,
+    bInheritHandle: BOOL,
+}
+
+impl Clone for SECURITY_ATTRIBUTES {
+    #[inline]
+    fn clone(&self) -> SECURITY_ATTRIBUTES { *self }
+}
+        
+#[cfg(feature = "impl-default")]
+impl Default for SECURITY_ATTRIBUTES {
+    #[inline]
+    fn default() -> SECURITY_ATTRIBUTES { unsafe { _core::mem::zeroed() } }
+}
+
 
 #[repr(C)]
 pub struct IUnknownVtbl {
@@ -97,7 +117,7 @@ type c_long = i32;
 type LONG_PTR = isize;
 type UINT_PTR = usize;
 type UINT = c_uint;
-type ULONG = c_ulong;
+// type ULONG = c_ulong;
 type WORD = c_ushort;
 type DWORD = c_ulong;
 type ATOM = WORD;
@@ -117,6 +137,8 @@ type HRESULT = c_long;
 pub type IID = GUID;
 type REFIID = *const IID;
 type FARPROC = *mut __some_function;
+type HANDLE = *mut c_void;
+type LPSECURITY_ATTRIBUTES = *mut SECURITY_ATTRIBUTES;
 
 const CS_OWNDC: UINT = 0x0020;
 const CS_HREDRAW: UINT = 0x0002;
@@ -130,6 +152,15 @@ const WS_THICKFRAME: DWORD = 0x00040000;
 const WS_MINIMIZEBOX: DWORD = 0x00020000;
 const WS_MAXIMIZEBOX: DWORD = 0x00010000;
 const WS_OVERLAPPEDWINDOW: DWORD = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
+const STD_OUTPUT_HANDLE: DWORD = 0xFFFFFFF5;
+const INVALID_HANDLE_VALUE: HANDLE = -1isize as HANDLE;
+const FILE_TYPE_UNKNOWN: DWORD = 0x0000;
+const ATTACH_PARENT_PROCESS: DWORD = 0xFFFFFFFF;
+const GENERIC_READ: DWORD = 0x80000000;
+const GENERIC_WRITE: DWORD = 0x40000000;
+const FILE_SHARE_WRITE: DWORD = 0x00000002;
+const OPEN_EXISTING: DWORD = 3;
+
 
 pub type PROCESS_DPI_AWARENESS = u32;
 pub const PROCESS_DPI_UNAWARE: PROCESS_DPI_AWARENESS = 0;
@@ -210,12 +241,24 @@ extern "system" {
         hInstance: HINSTANCE,
         lpParam: LPVOID,
     ) -> HWND;
+    pub fn CreateFileA(
+        lpFileName: LPCSTR,
+        dwDesiredAccess: DWORD,
+        dwShareMode: DWORD,
+        lpSecurityAttributes: LPSECURITY_ATTRIBUTES,
+        dwCreationDisposition: DWORD,
+        dwFlagsAndAttributes: DWORD,
+        hTemplateFile: HANDLE,
+    ) -> HANDLE;
     pub fn GetModuleHandleW(lpModuleName: LPCWSTR) -> HMODULE;
     pub fn GetMessageW(lpMsg: LPMSG, hWnd: HWND, wMsgFilterMin: UINT, wMsgFilterMax: UINT) -> BOOL;
     pub fn DispatchMessageW(lpmsg: *const MSG) -> LRESULT;
     pub fn TranslateMessage(lpmsg: *const MSG) -> BOOL;
     pub fn GetProcAddress(hModule: HMODULE, lpProcName: LPCSTR) -> FARPROC;
     pub fn LoadLibraryW(lpFileName: LPCWSTR) -> HMODULE;
+    pub fn GetStdHandle(nStdHandle: DWORD) -> HANDLE;
+    pub fn GetFileType(hFile: HANDLE) -> DWORD;
+    pub fn AttachConsole(dwProcessId: DWORD) -> BOOL;
 }
 
 // from shcore.dll
@@ -453,6 +496,22 @@ pub fn handle_message(window: &mut Window) -> bool {
         } else {
             false
         }
+    }
+}
+
+pub fn init() {
+    attach_console();
+}
+
+fn attach_console() {
+    unsafe {
+         let stdout = GetStdHandle(STD_OUTPUT_HANDLE);
+         if stdout != INVALID_HANDLE_VALUE && GetFileType(stdout) != FILE_TYPE_UNKNOWN {
+             return;
+         }
+         if AttachConsole(ATTACH_PARENT_PROCESS) > 0 {
+            let chnd = CreateFileA(CString::new("CONOUT$").unwrap().as_ptr(), GENERIC_READ| GENERIC_WRITE, FILE_SHARE_WRITE, ptr::null_mut(), OPEN_EXISTING, 0, ptr::null_mut(),);
+         }
     }
 }
 
