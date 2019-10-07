@@ -139,6 +139,7 @@ type REFIID = *const IID;
 type FARPROC = *mut __some_function;
 type HANDLE = *mut c_void;
 type LPSECURITY_ATTRIBUTES = *mut SECURITY_ATTRIBUTES;
+type COLORREF = DWORD;
 
 const CS_OWNDC: UINT = 0x0020;
 const CS_HREDRAW: UINT = 0x0002;
@@ -161,6 +162,7 @@ const GENERIC_READ: DWORD = 0x80000000;
 const GENERIC_WRITE: DWORD = 0x40000000;
 const FILE_SHARE_WRITE: DWORD = 0x00000002;
 const OPEN_EXISTING: DWORD = 3;
+const IDI_APPLICATION: LPCWSTR = 32512 as LPCWSTR;
 
 
 
@@ -262,6 +264,8 @@ extern "system" {
     pub fn GetFileType(hFile: HANDLE) -> DWORD;
     pub fn AttachConsole(dwProcessId: DWORD) -> BOOL;
     pub fn SetStdHandle(nStdHandle: DWORD, hHandle: HANDLE) -> BOOL;
+    pub fn LoadIconW(hInstance: HINSTANCE, lpIconName: LPCWSTR) -> HICON;
+    pub fn CreateSolidBrush(color: COLORREF) -> HBRUSH;
 }
 
 // from shcore.dll
@@ -452,7 +456,7 @@ pub fn create_window(title: &str) -> Result<Window, Error> {
 
         let window_handle = CreateWindowExW(
             0,
-            window_name.as_ptr(),
+            window_name.to_wide().as_ptr(),
             window_title.as_ptr(),
             WS_OVERLAPPEDWINDOW | WS_VISIBLE,
             CW_USEDEFAULT,
@@ -461,7 +465,7 @@ pub fn create_window(title: &str) -> Result<Window, Error> {
             CW_USEDEFAULT,
             null_mut(),
             null_mut(),
-            hinstance,
+            null_mut(),
             null_mut());
         
         if window_handle.is_null() {
@@ -486,10 +490,16 @@ pub fn handle_message(window: &mut Window) -> bool {
     }
 }
 
+
+pub const window_name: &str = "azurite_window";
+
 pub fn init() {
     
+
+    // Attach console
     attach_console();
-    
+
+    // Set DPI aware mode
     if let Some(func) = OPTIONAL_FUNCTIONS.SetProcessDpiAwareness {
         unsafe {
             func(PROCESS_SYSTEM_DPI_AWARE);
@@ -497,20 +507,20 @@ pub fn init() {
         }
     }
     
-    let window_name = "azurite_window".to_wide();
-    let hinstance = GetModuleHandleW(null_mut());
+    // Register window class
+    
+    
     
     unsafe{
-        // TODO: implement Icon and Brush function calls
-        
-        let icon = 0 ;
-        let brush = 0;
+        let hinstance = GetModuleHandleW(null_mut());        
+        let icon = LoadIconW(0 as HINSTANCE, IDI_APPLICATION);
+        let brush = CreateSolidBrush(0xffffff);
         
         let win_class = WNDCLASSW {
             style: CS_OWNDC | CS_HREDRAW | CS_VREDRAW,
             lpfnWndProc: Some(window_proc), //Some(DefWindowProcW), 
             hInstance:  hinstance,
-            lpszClassName: window_name.as_ptr(),
+            lpszClassName: window_name.to_wide().as_ptr(),
             cbClsExtra: 0,
             cbWndExtra: 0,
             hIcon: icon,
@@ -518,13 +528,18 @@ pub fn init() {
             hbrBackground: brush,
             lpszMenuName: null_mut(),
         };
-        RegisterClassW(&win_class);
+         if RegisterClassW(&win_class) > 0 {
+            println!("Registered window class.");
+        }  else {
+            panic!("Failed to register the window class.");
+        }
+        
     }
 }
 
 fn attach_console() {
     unsafe {
-         let stdout = GetStdHandle(STD_OUTPUT_HANDLE);
+        let stdout = GetStdHandle(STD_OUTPUT_HANDLE);
          if stdout != INVALID_HANDLE_VALUE && GetFileType(stdout) != FILE_TYPE_UNKNOWN {
             println!("Existing console already attached to main process."); 
             return;
@@ -539,7 +554,6 @@ fn attach_console() {
             SetStdHandle(STD_ERROR_HANDLE, chnd);
             println!("Console attached to main process.");
          }
-
     }
-}
+} 
 
