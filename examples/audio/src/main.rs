@@ -1,5 +1,5 @@
 // #![windows_subsystem = "windows"]
-use azurite::window;
+use ::window::window;
 
 #[cfg(windows)]
 fn main() {

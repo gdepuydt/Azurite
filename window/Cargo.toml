@@ -1,6 +1,6 @@
 [package]
-name = "azurite"
-description = "A WIP multimedia creative engine"
+name = "window"
+description = "Create a window"
 license = "GPL-3.0"
 version = "0.1.0"
 authors = ["Geert Depuydt <geert_depuydt@hotmail.com>"]
